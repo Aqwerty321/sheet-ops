@@ -1,0 +1,52 @@
+{
+  "name": "@redwoodjs/starter",
+  "version": "1.0.0",
+  "description": "A bare-bones RedwoodSDK starter",
+  "main": "index.js",
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite dev",
+    "dev:init": "rw-scripts dev-init",
+    "preview": "vite preview",
+    "worker:run": "rw-scripts worker-run",
+    "clean": "npm run clean:vite",
+    "clean:vite": "rm -rf ./node_modules/.vite",
+    "release": "rw-scripts ensure-deploy-env && npm run clean && npm run build && wrangler deploy",
+    "generate": "rw-scripts ensure-env && wrangler types --include-runtime false",
+    "check": "npm run generate && npm run types",
+    "types": "tsc"
+  },
+  "dependencies": {
+    "gsap": "^3.14.2",
+    "googleapis": "^132.0.0",
+    "react": "19.3.0-canary-d6cae440-20260106",
+    "react-dom": "19.3.0-canary-d6cae440-20260106",
+    "react-server-dom-webpack": "19.3.0-canary-d6cae440-20260106",
+    "rwsdk": "1.0.0-beta.50"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.21.2",
+    "@cloudflare/workers-types": "4.20260122.0",
+    "@types/node": "~24.10.0",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "autoprefixer": "10.4.20",
+    "postcss": "8.5.3",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.9.3",
+    "vite": "7.3.1",
+    "wrangler": "4.60.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "workerd"
+    ]
+  }
+}
