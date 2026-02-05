@@ -7,6 +7,7 @@ declare namespace Cloudflare {
 	interface Env {
 		ASSETS: Fetcher;
 		GOOGLE_SERVICE_ACCOUNT_KEY: string;
+		COMPOSIO_API_KEY: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
@@ -14,5 +15,5 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "GOOGLE_SERVICE_ACCOUNT_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "GOOGLE_SERVICE_ACCOUNT_KEY" | "COMPOSIO_API_KEY">> {}
 }

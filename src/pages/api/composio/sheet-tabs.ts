@@ -1,6 +1,6 @@
 import { route } from "rwsdk/router";
 
-const COMPOSIO_API_KEY = "ak_duib7fFMFxL8Dpwdl3PQ";
+const getApiKey = () => process.env.COMPOSIO_API_KEY || "";
 
 /**
  * Get sheet tabs (worksheets) for a spreadsheet
@@ -29,7 +29,7 @@ export default route("/api/composio/sheet-tabs", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": COMPOSIO_API_KEY,
+            "x-api-key": getApiKey(),
           },
           body: JSON.stringify(
             connectedAccountId
@@ -86,7 +86,7 @@ export default route("/api/composio/sheet-tabs", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-api-key": COMPOSIO_API_KEY,
+              "x-api-key": getApiKey(),
             },
             body: JSON.stringify(
               connectedAccountId

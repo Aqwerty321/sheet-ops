@@ -1,6 +1,6 @@
 import { route } from "rwsdk/router";
 
-const COMPOSIO_API_KEY = "ak_duib7fFMFxL8Dpwdl3PQ";
+const getApiKey = () => process.env.COMPOSIO_API_KEY || "";
 
 /**
  * List user's Google Sheets via Composio
@@ -22,7 +22,7 @@ export default route("/api/composio/sheets", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": COMPOSIO_API_KEY,
+            "x-api-key": getApiKey(),
           },
           body: JSON.stringify(
             connectedAccountId
@@ -45,7 +45,7 @@ export default route("/api/composio/sheets", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-api-key": COMPOSIO_API_KEY,
+              "x-api-key": getApiKey(),
             },
             body: JSON.stringify(
               connectedAccountId
@@ -147,7 +147,7 @@ export default route("/api/composio/sheets", {
         const accountsRes = await fetch(
           `https://backend.composio.dev/api/v1/connectedAccounts?entityId=${userId}`,
           {
-            headers: { "x-api-key": COMPOSIO_API_KEY },
+            headers: { "x-api-key": getApiKey() },
           }
         );
         if (accountsRes.ok) {
@@ -174,7 +174,7 @@ export default route("/api/composio/sheets", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-api-key": COMPOSIO_API_KEY,
+            "x-api-key": getApiKey(),
           },
           body: JSON.stringify(
             accountId

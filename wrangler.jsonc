@@ -3,7 +3,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
 
   // Name of your worker
-  "name": "__change_me__",
+  "name": "sheet-ops",
 
   // Entry point for your worker
   "main": "src/worker.tsx",
@@ -20,10 +20,10 @@
   // Observability settings
   "observability": {
     "enabled": true
-  },
-
-  // Environment variables
-  "vars": {
-    // Add your environment variables here
   }
+
+  // Environment variables are set via Cloudflare dashboard or `wrangler secret put`.
+  // Required secrets:
+  // - COMPOSIO_API_KEY: Your Composio API key
+  // - GOOGLE_SERVICE_ACCOUNT_KEY: JSON string of the Google service account
 }
