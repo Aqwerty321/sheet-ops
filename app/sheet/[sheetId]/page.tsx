@@ -93,7 +93,7 @@ const applyOpsToState = (state: SheetState, ops: EditOperation[]): SheetState =>
       // Check if this is a new row (rowId starts with "r-new-" or "r-inserted-")
       const isNewRow = op.rowId.startsWith("r-new-") || op.rowId.startsWith("r-inserted-");
       const existingRow = rows.find((row) => row.id === op.rowId);
-      
+
       if (isNewRow && !existingRow) {
         // Create a new row with empty cells for all columns
         const newRow = {
@@ -102,17 +102,17 @@ const applyOpsToState = (state: SheetState, ops: EditOperation[]): SheetState =>
         };
         rows = [...rows, newRow];
       }
-      
+
       // Now update the cell
       rows = rows.map((row) =>
         row.id === op.rowId
           ? {
-              ...row,
-              cells: {
-                ...row.cells,
-                [op.columnId!]: op.newValue ?? "",
-              },
-            }
+            ...row,
+            cells: {
+              ...row.cells,
+              [op.columnId!]: op.newValue ?? "",
+            },
+          }
           : row,
       );
     }
@@ -170,6 +170,19 @@ export default function Page({ params }: { params: { sheetId: string } }) {
     }
     return "oauth"; // Default to oauth for Composio flow
   });
+  const [userId, setUserId] = useState("anonymous");
+
+  // Initialize/Get unique user ID
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      let storedId = localStorage.getItem("sheetops-userId");
+      if (!storedId) {
+        storedId = `user_${Math.random().toString(36).slice(2, 9)}`;
+        localStorage.setItem("sheetops-userId", storedId);
+      }
+      setUserId(storedId);
+    }
+  }, []);
   const [oauthTokens, setOauthTokens] = useState<
     { accessToken: string; refreshToken?: string } | null
   >(null);
@@ -184,7 +197,7 @@ export default function Page({ params }: { params: { sheetId: string } }) {
   const [availableSheets, setAvailableSheets] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingSheets, setLoadingSheets] = useState(false);
   const [selectedSheet, setSelectedSheet] = useState<{ id: string; name: string } | null>(null);
-  
+
   // Sheet tabs (worksheets within a spreadsheet)
   const [availableTabs, setAvailableTabs] = useState<Array<{ id: number; name: string }>>([]);
   const [selectedTab, setSelectedTab] = useState<string>("Sheet1");
@@ -200,36 +213,36 @@ export default function Page({ params }: { params: { sheetId: string } }) {
     const rows: Row[] =
       sheetId === "sample"
         ? [
-            {
-              id: "r1",
-              cells: {
-                name: "Alice Smith",
-                email: "alice@example.com",
-                amount: "1200",
-              },
+          {
+            id: "r1",
+            cells: {
+              name: "Alice Smith",
+              email: "alice@example.com",
+              amount: "1200",
             },
-            {
-              id: "r2",
-              cells: {
-                name: "Bob Chen",
-                email: "bob@example.com",
-                amount: "540",
-              },
+          },
+          {
+            id: "r2",
+            cells: {
+              name: "Bob Chen",
+              email: "bob@example.com",
+              amount: "540",
             },
-            {
-              id: "r3",
-              cells: {
-                name: "Cara Diaz",
-                email: "cara@example.com",
-                amount: "2300",
-              },
+          },
+          {
+            id: "r3",
+            cells: {
+              name: "Cara Diaz",
+              email: "cara@example.com",
+              amount: "2300",
             },
-          ]
+          },
+        ]
         : [
-            { id: "r1", cells: { name: "", email: "", amount: "" } },
-            { id: "r2", cells: { name: "", email: "", amount: "" } },
-            { id: "r3", cells: { name: "", email: "", amount: "" } },
-          ];
+          { id: "r1", cells: { name: "", email: "", amount: "" } },
+          { id: "r2", cells: { name: "", email: "", amount: "" } },
+          { id: "r3", cells: { name: "", email: "", amount: "" } },
+        ];
 
     return { columns, rows, pendingOps: [] };
   }, [sheetId]);
@@ -248,20 +261,21 @@ export default function Page({ params }: { params: { sheetId: string } }) {
 
   // Check Composio connection on mount and when authMode changes
   useEffect(() => {
+    if (userId === "anonymous") return;
     const checkComposioConnection = async () => {
       console.log("Checking Composio connection for authMode:", authMode);
       try {
-        const res = await fetch("/api/composio/connection?userId=anonymous&app=google_sheets");
+        const res = await fetch(`/api/composio/connection?userId=${userId}&app=google_sheets`);
         const data = (await res.json()) as { connected?: boolean; connectedAccountId?: string; accounts?: unknown[] };
         console.log("Composio connection response:", data);
         setComposioConnected(data.connected ?? false);
-        
+
         // If connected, save account ID and load available sheets
         if (data.connected && data.connectedAccountId) {
           console.log("Connected! Account ID:", data.connectedAccountId);
           setComposioAccountId(data.connectedAccountId);
           loadAvailableSheets(data.connectedAccountId);
-          
+
           // If we have a real sheet ID, auto-load the data
           if (isRealSheetId(sheetId)) {
             console.log("Auto-loading sheet data for:", sheetId);
@@ -278,7 +292,7 @@ export default function Page({ params }: { params: { sheetId: string } }) {
         setComposioAccountId(null);
       }
     };
-    
+
     // Helper to pull data with explicit accountId and tab name
     const handlePullWithAccountId = async (targetSheetId: string, accountId: string, tabName: string = "Sheet1") => {
       setSyncing(true);
@@ -290,21 +304,21 @@ export default function Page({ params }: { params: { sheetId: string } }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: "anonymous",
+            userId: userId,
             sheetId: targetSheetId,
             connectedAccountId: accountId,
             range,
           }),
         });
-        
+
         const data = (await res.json()) as { values?: string[][]; error?: string; debug?: string };
-        
+
         if (data.error) {
           console.error("Pull error:", data.error, data.debug);
           setAuthError(data.error);
           return;
         }
-        
+
         const values = data.values ?? [];
         if (values.length === 0) {
           setAuthError("Sheet is empty or inaccessible.");
@@ -336,20 +350,20 @@ export default function Page({ params }: { params: { sheetId: string } }) {
         setSyncing(false);
       }
     };
-    
+
     // Always check on mount, and when authMode is oauth
     if (authMode === "oauth") {
       checkComposioConnection();
     }
-  }, [authMode, sheetId]);
+  }, [authMode, sheetId, userId]);
 
   const loadAvailableSheets = async (accountId?: string) => {
     const connectedAccountId = accountId || composioAccountId;
     setLoadingSheets(true);
     try {
       const url = connectedAccountId
-        ? `/api/composio/sheets?userId=anonymous&connectedAccountId=${connectedAccountId}`
-        : "/api/composio/sheets?userId=anonymous";
+        ? `/api/composio/sheets?userId=${userId}&connectedAccountId=${connectedAccountId}`
+        : `/api/composio/sheets?userId=${userId}`;
       const res = await fetch(url);
       const data = (await res.json()) as { sheets?: Array<{ id: string; name: string }>; error?: string; debug?: unknown };
       console.log("Load sheets response:", data);
@@ -368,19 +382,19 @@ export default function Page({ params }: { params: { sheetId: string } }) {
   const loadSheetTabs = async (spreadsheetId: string, accountId?: string) => {
     const connectedAccountId = accountId || composioAccountId;
     if (!spreadsheetId || !isRealSheetId(spreadsheetId)) return;
-    
+
     setLoadingTabs(true);
     try {
       const url = connectedAccountId
         ? `/api/composio/sheet-tabs?spreadsheetId=${spreadsheetId}&connectedAccountId=${connectedAccountId}`
-        : `/api/composio/sheet-tabs?spreadsheetId=${spreadsheetId}&userId=anonymous`;
+        : `/api/composio/sheet-tabs?spreadsheetId=${spreadsheetId}&userId=${userId}`;
       const res = await fetch(url);
       const data = (await res.json()) as { tabs?: Array<{ id: number; name: string }>; error?: string };
       console.log("Load tabs response:", data);
-      
+
       const tabs = data.tabs ?? [{ id: 0, name: "Sheet1" }];
       setAvailableTabs(tabs);
-      
+
       // Select first tab if not already selected or current selection doesn't exist
       if (tabs.length > 0 && !tabs.find((t) => t.name === selectedTab)) {
         setSelectedTab(tabs[0].name);
@@ -439,9 +453,9 @@ export default function Page({ params }: { params: { sheetId: string } }) {
       rows: prev.rows.map((row) =>
         row.id === rowId
           ? {
-              ...row,
-              cells: { ...row.cells, [columnId]: newValue },
-            }
+            ...row,
+            cells: { ...row.cells, [columnId]: newValue },
+          }
           : row,
       ),
       pendingOps: [...prev.pendingOps, op],
@@ -449,13 +463,13 @@ export default function Page({ params }: { params: { sheetId: string } }) {
   };
 
   const handleApply = async () => {
-    console.log("handleApply called:", { 
-      pendingOps: sheetState.pendingOps.length, 
-      authMode, 
+    console.log("handleApply called:", {
+      pendingOps: sheetState.pendingOps.length,
+      authMode,
       composioConnected,
-      composioAccountId 
+      composioAccountId
     });
-    
+
     if (sheetState.pendingOps.length === 0) {
       console.log("No pending ops, returning early");
       return;
@@ -547,25 +561,25 @@ export default function Page({ params }: { params: { sheetId: string } }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: "anonymous",
+          userId: userId,
           app: "google_sheets",
           redirectUrl: window.location.href,
         }),
       });
-      const data = (await res.json()) as { 
-        redirectUrl?: string; 
-        error?: string; 
+      const data = (await res.json()) as {
+        redirectUrl?: string;
+        error?: string;
         details?: unknown;
         ok?: boolean;
       };
-      
+
       console.log("Connect response:", data);
-      
+
       if (data.error) {
         setAuthError(`Connection failed: ${data.error}`);
         return;
       }
-      
+
       if (data.redirectUrl) {
         // Redirect to Google OAuth page
         window.location.href = data.redirectUrl;
@@ -667,20 +681,20 @@ export default function Page({ params }: { params: { sheetId: string } }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: "anonymous",
+          userId: userId,
           sheetId: targetSheetId,
           connectedAccountId: accountId,
           range,
         }),
       });
-      
+
       const data = (await res.json()) as { values?: string[][]; error?: string };
-      
+
       if (data.error) {
         setAuthError(data.error);
         return;
       }
-      
+
       const values = data.values ?? [];
       if (values.length === 0) {
         setAuthError("Sheet is empty.");
@@ -717,7 +731,7 @@ export default function Page({ params }: { params: { sheetId: string } }) {
   const handlePush = async () => {
     const targetSheetId = selectedSheet?.id || sheetId;
     console.log("Push started:", { targetSheetId, composioAccountId, selectedTab, pendingOps: sheetState.pendingOps.length });
-    
+
     if (!isRealSheetId(targetSheetId)) {
       setAuthError("Select a sheet first.");
       return;
@@ -726,45 +740,45 @@ export default function Page({ params }: { params: { sheetId: string } }) {
       setAuthError("No changes to push.");
       return;
     }
-    
+
     setPushing(true);
     setAuthError(null);
-    
+
     try {
       // Apply pending ops to get the final state to push
       const stateTosPush = sheetState.pendingOps.length > 0
         ? applyOpsToState(baseStateRef.current, sheetState.pendingOps)
         : sheetState;
-      
+
       // Convert state to 2D array for full push
       const headerRow = stateTosPush.columns.map((col) => col.label);
       const dataRows = stateTosPush.rows.map((row) =>
         stateTosPush.columns.map((col) => row.cells[col.id] ?? "")
       );
       const fullData = [headerRow, ...dataRows];
-      
+
       console.log("Pushing data:", { rows: fullData.length, cols: fullData[0]?.length, sheetName: selectedTab });
-      
+
       const res = await fetch("/api/composio/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: "anonymous",
+          userId: userId,
           sheetId: targetSheetId,
           sheetName: selectedTab,
           connectedAccountId: composioAccountId,
           fullData,
         }),
       });
-      
+
       const data = (await res.json()) as { ok?: boolean; error?: string; updated?: number; details?: string };
       console.log("Push response:", data);
-      
+
       if (data.error) {
         setAuthError(data.error + (data.details ? `: ${data.details}` : ""));
         return;
       }
-      
+
       // Update base state and current state to the pushed state
       baseStateRef.current = { ...stateTosPush, pendingOps: [] };
       setSheetState({ ...stateTosPush, pendingOps: [] });
@@ -806,18 +820,16 @@ export default function Page({ params }: { params: { sheetId: string } }) {
               <div className="inline-flex rounded-md border border-gray-300 p-1">
                 <button
                   aria-label="Switch to Agent mode"
-                  className={`px-3 py-1 rounded ${
-                    mode === "agent" ? "bg-black text-white" : "text-black"
-                  }`}
+                  className={`px-3 py-1 rounded ${mode === "agent" ? "bg-black text-white" : "text-black"
+                    }`}
                   onClick={() => setMode("agent")}
                 >
                   Agent
                 </button>
                 <button
                   aria-label="Switch to Manual mode"
-                  className={`px-3 py-1 rounded ${
-                    mode === "manual" ? "bg-black text-white" : "text-black"
-                  }`}
+                  className={`px-3 py-1 rounded ${mode === "manual" ? "bg-black text-white" : "text-black"
+                    }`}
                   onClick={() => setMode("manual")}
                 >
                   Manual
@@ -994,11 +1006,10 @@ export default function Page({ params }: { params: { sheetId: string } }) {
                 {/* Push button (send to Google) */}
                 <button
                   aria-label="Push to Google Sheets"
-                  className={`rounded-md px-3 py-1.5 flex items-center gap-1 ${
-                    pendingCount > 0
-                      ? "bg-black text-white"
-                      : "border border-gray-300 text-gray-400"
-                  }`}
+                  className={`rounded-md px-3 py-1.5 flex items-center gap-1 ${pendingCount > 0
+                    ? "bg-black text-white"
+                    : "border border-gray-300 text-gray-400"
+                    }`}
                   onClick={handlePush}
                   disabled={pushing || pendingCount === 0}
                 >
@@ -1060,7 +1071,7 @@ export default function Page({ params }: { params: { sheetId: string } }) {
                 sheetId={selectedSheet?.id || sheetId}
                 sheetName={selectedSheet?.name}
                 tabName={selectedTab}
-                userId="anonymous"
+                userId={userId}
                 onProposeOps={handleAgentOps}
                 validationIssues={validationIssues}
                 onPreview={() => setIsDiffOpen(true)}

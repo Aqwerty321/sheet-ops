@@ -14,6 +14,17 @@ export default function Page() {
     const router = useRouter();
     const [authMode, setAuthMode] = useState<AuthMode>("oauth");
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [userId, setUserId] = useState("anonymous");
+
+    // Initialize/Get unique user ID
+    useEffect(() => {
+        let storedId = localStorage.getItem("sheetops-userId");
+        if (!storedId) {
+            storedId = `user_${Math.random().toString(36).slice(2, 9)}`;
+            localStorage.setItem("sheetops-userId", storedId);
+        }
+        setUserId(storedId);
+    }, []);
 
     // OAuth state
     const [isConnected, setIsConnected] = useState(false);
@@ -36,9 +47,10 @@ export default function Page() {
 
     // Check OAuth connection on mount
     useEffect(() => {
+        if (userId === "anonymous") return; // Wait for userId to be initialized
         const checkConnection = async () => {
             try {
-                const res = await fetch("/api/composio/connection?userId=anonymous");
+                const res = await fetch(`/api/composio/connection?userId=${userId}`);
                 const data = await res.json();
                 console.log("Connection check result:", data);
                 setIsConnected(data.connected ?? false);
@@ -51,7 +63,7 @@ export default function Page() {
             }
         };
         checkConnection();
-    }, []);
+    }, [userId]);
 
     // Load service account sheets when mode changes
     useEffect(() => {
@@ -65,7 +77,7 @@ export default function Page() {
         if (!connectedAccountId) return;
         setLoadingOauthSheets(true);
         try {
-            const res = await fetch(`/api/composio/sheets?userId=anonymous&connectedAccountId=${connectedAccountId}`);
+            const res = await fetch(`/api/composio/sheets?userId=${userId}&connectedAccountId=${connectedAccountId}`);
             const data = await res.json();
             setOauthSheets(data.sheets || []);
         } catch (err) {
@@ -112,7 +124,7 @@ export default function Page() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    userId: "anonymous",
+                    userId: userId,
                     app: "google_sheets",
                     redirectUrl: window.location.href,
                 }),
@@ -442,6 +454,7 @@ export default function Page() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onCreated={handleSheetCreated}
+                userId={userId}
                 onAuthError={() => {
                     setIsConnected(false);
                     setConnectedAccountId(null);
