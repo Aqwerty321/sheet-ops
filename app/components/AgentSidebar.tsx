@@ -164,10 +164,15 @@ export default function AgentSidebar({
           acc[col.label] = "text"; // Default to text, could be more sophisticated
           return acc;
         }, {}),
-        currentData: rows.slice(0, 10).map((row) =>
-          columns.map((col) => row.cells[col.id] || "")
-        ),
+        // Include row indices so agent knows exact row numbers to reference
+        // Row 1 = first data row (r1), Row 2 = second data row (r2), etc.
+        currentData: rows.slice(0, 10).map((row, idx) => ({
+          rowIndex: idx + 1, // 1-based row number for agent to use
+          rowId: row.id,     // Our internal ID (r1, r2, etc.)
+          values: columns.map((col) => row.cells[col.id] || ""),
+        })),
         rowCount: rows.length,
+        note: "Row indices are 1-based. Use rowIndex value when specifying row in operations.",
       };
 
       // Send context message to agent
