@@ -8,15 +8,28 @@ import TextType from "./components/TextType";
 import GlareHover from "./components/GlareHover";
 import CreateSheetModal from "./components/CreateSheetModal";
 
+type AuthMode = "oauth" | "service";
+
 export default function Page() {
     const router = useRouter();
+    const [authMode, setAuthMode] = useState<AuthMode>("oauth");
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // OAuth state
     const [isConnected, setIsConnected] = useState(false);
     const [isCheckingConnection, setIsCheckingConnection] = useState(true);
     const [connectedAccountId, setConnectedAccountId] = useState<string | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
 
-    // Check if user has connected Google account
+    // Service account state
+    const [serviceSheets, setServiceSheets] = useState<Array<{ id: string; name: string }>>([]);
+    const [loadingServiceSheets, setLoadingServiceSheets] = useState(false);
+    const [serviceAccountEmail, setServiceAccountEmail] = useState<string | null>(null);
+    const [isCreatingServiceSheet, setIsCreatingServiceSheet] = useState(false);
+    const [newSheetTitle, setNewSheetTitle] = useState("");
+    const [showServiceSheetPicker, setShowServiceSheetPicker] = useState(false);
+
+    // Check OAuth connection on mount
     useEffect(() => {
         const checkConnection = async () => {
             try {
@@ -32,6 +45,29 @@ export default function Page() {
         };
         checkConnection();
     }, []);
+
+    // Load service account sheets when mode changes
+    useEffect(() => {
+        if (authMode === "service") {
+            loadServiceSheets();
+        }
+    }, [authMode]);
+
+    const loadServiceSheets = async () => {
+        setLoadingServiceSheets(true);
+        try {
+            const res = await fetch("/api/sheets/list");
+            const data = await res.json();
+            if (data.ok) {
+                setServiceSheets(data.sheets || []);
+                setServiceAccountEmail(data.serviceAccountEmail);
+            }
+        } catch (err) {
+            console.error("Failed to load service sheets:", err);
+        } finally {
+            setLoadingServiceSheets(false);
+        }
+    };
 
     const handleConnect = async () => {
         setIsConnecting(true);
@@ -59,16 +95,51 @@ export default function Page() {
     };
 
     const handleCreateClick = () => {
-        if (!isConnected) {
-            handleConnect();
+        if (authMode === "oauth") {
+            if (!isConnected) {
+                handleConnect();
+            } else {
+                setIsModalOpen(true);
+            }
         } else {
-            setIsModalOpen(true);
+            // Service account mode - show inline create UI
+            setShowServiceSheetPicker(true);
         }
     };
 
     const handleSheetCreated = (spreadsheetId: string, title: string) => {
-        // Navigate to the new sheet
+        // Save auth mode to localStorage before navigating
+        localStorage.setItem("sheetops-authMode", authMode);
         router.push(`/sheet/${spreadsheetId}`);
+    };
+
+    const handleCreateServiceSheet = async () => {
+        if (!newSheetTitle.trim()) return;
+
+        setIsCreatingServiceSheet(true);
+        try {
+            const res = await fetch("/api/sheets/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: newSheetTitle.trim() }),
+            });
+            const data = await res.json();
+            if (data.ok && data.spreadsheetId) {
+                localStorage.setItem("sheetops-authMode", "service");
+                router.push(`/sheet/${data.spreadsheetId}`);
+            } else {
+                alert("Failed to create: " + (data.error || "Unknown error"));
+            }
+        } catch (err) {
+            alert("Create failed: " + err);
+        } finally {
+            setIsCreatingServiceSheet(false);
+        }
+    };
+
+    const handleSelectServiceSheet = (sheetId: string) => {
+        localStorage.setItem("sheetops-authMode", "service");
+        router.push(`/sheet/${sheetId}`);
     };
 
     return (
@@ -120,64 +191,179 @@ export default function Page() {
                                     </p>
                                 </header>
 
-                                {/* Connection Status */}
-                                <div className="mb-4 flex items-center justify-center gap-2 text-sm">
-                                    {isCheckingConnection ? (
-                                        <span className="text-gray-500">Checking connection...</span>
-                                    ) : isConnected ? (
-                                        <span className="text-green-600 flex items-center gap-1">
-                                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                            Google account connected
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-500 flex items-center gap-1">
-                                            <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-                                            Not connected
-                                        </span>
-                                    )}
+                                {/* Auth Mode Toggle */}
+                                <div className="flex justify-center gap-2 mb-4">
+                                    <button
+                                        onClick={() => setAuthMode("service")}
+                                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${authMode === "service"
+                                                ? "bg-gray-900 text-white"
+                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                            }`}
+                                    >
+                                        Use app sheets (no sign-in)
+                                    </button>
+                                    <button
+                                        onClick={() => setAuthMode("oauth")}
+                                        className={`px-4 py-2 text-sm rounded-lg transition-colors ${authMode === "oauth"
+                                                ? "bg-gray-900 text-white"
+                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                            }`}
+                                    >
+                                        Use my Google Sheets
+                                    </button>
                                 </div>
 
-                                <div className="flex flex-col md:flex-row gap-3 md:justify-center">
-                                    <button
-                                        onClick={handleCreateClick}
-                                        disabled={isConnecting}
-                                        aria-label={isConnected ? "Create new spreadsheet" : "Connect Google account"}
-                                        className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-black text-white text-center hover:opacity-95 disabled:opacity-50 flex items-center justify-center gap-2"
-                                    >
-                                        {isConnecting ? (
-                                            <>
-                                                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                </svg>
-                                                Connecting...
-                                            </>
-                                        ) : isConnected ? (
-                                            "Create new spreadsheet"
-                                        ) : (
-                                            "Connect & Create"
+                                {/* OAuth Mode */}
+                                {authMode === "oauth" && (
+                                    <>
+                                        {/* Connection Status */}
+                                        <div className="mb-4 flex items-center justify-center gap-2 text-sm">
+                                            {isCheckingConnection ? (
+                                                <span className="text-gray-500">Checking connection...</span>
+                                            ) : isConnected ? (
+                                                <span className="text-green-600 flex items-center gap-1">
+                                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                                    Google account connected
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-500 flex items-center gap-1">
+                                                    <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                                                    Not connected
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col md:flex-row gap-3 md:justify-center">
+                                            <button
+                                                onClick={handleCreateClick}
+                                                disabled={isConnecting}
+                                                className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-black text-white text-center hover:opacity-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                                            >
+                                                {isConnecting ? (
+                                                    <>
+                                                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                        </svg>
+                                                        Connecting...
+                                                    </>
+                                                ) : isConnected ? (
+                                                    "Create new spreadsheet"
+                                                ) : (
+                                                    "Connect & Create"
+                                                )}
+                                            </button>
+                                            <a
+                                                href="/sheet/sample"
+                                                className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-white text-black text-center hover:bg-gray-50"
+                                            >
+                                                Open sample sheet
+                                            </a>
+                                        </div>
+                                        <p className="mt-4 text-center text-sm text-gray-600">
+                                            {isConnected
+                                                ? "Create a new spreadsheet in your Google Drive"
+                                                : "Connect your Google account to create spreadsheets"}
+                                        </p>
+                                    </>
+                                )}
+
+                                {/* Service Account Mode */}
+                                {authMode === "service" && (
+                                    <>
+                                        {serviceAccountEmail && (
+                                            <div className="mb-4 text-center text-xs text-gray-500">
+                                                Service account: <code className="bg-gray-100 px-1 rounded">{serviceAccountEmail}</code>
+                                            </div>
                                         )}
-                                    </button>
-                                    <a
-                                        href="/sheet/sample"
-                                        aria-label="Open sample sheet"
-                                        className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-white text-black text-center hover:bg-gray-50"
-                                    >
-                                        Open sample sheet
-                                    </a>
-                                </div>
-                                <p className="mt-4 text-center text-sm text-gray-600">
-                                    {isConnected
-                                        ? "Create a new spreadsheet in your Google Drive"
-                                        : "Connect your Google account to create spreadsheets"}
-                                </p>
+
+                                        {!showServiceSheetPicker ? (
+                                            <div className="flex flex-col md:flex-row gap-3 md:justify-center">
+                                                <button
+                                                    onClick={handleCreateClick}
+                                                    className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-black text-white text-center hover:opacity-95"
+                                                >
+                                                    Create or select sheet
+                                                </button>
+                                                <a
+                                                    href="/sheet/sample"
+                                                    className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-white text-black text-center hover:bg-gray-50"
+                                                >
+                                                    Open sample sheet
+                                                </a>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {/* Create New Sheet */}
+                                                <div className="p-4 bg-gray-50 rounded-lg">
+                                                    <h3 className="text-sm font-medium mb-2">Create new spreadsheet</h3>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Spreadsheet name"
+                                                            value={newSheetTitle}
+                                                            onChange={(e) => setNewSheetTitle(e.target.value)}
+                                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                                                            onKeyDown={(e) => e.key === "Enter" && handleCreateServiceSheet()}
+                                                        />
+                                                        <button
+                                                            onClick={handleCreateServiceSheet}
+                                                            disabled={isCreatingServiceSheet || !newSheetTitle.trim()}
+                                                            className="px-4 py-2 bg-black text-white rounded-lg text-sm hover:opacity-90 disabled:opacity-50"
+                                                        >
+                                                            {isCreatingServiceSheet ? "Creating..." : "Create"}
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Existing Sheets */}
+                                                <div className="p-4 bg-gray-50 rounded-lg">
+                                                    <h3 className="text-sm font-medium mb-2">
+                                                        Or select an existing sheet
+                                                        {loadingServiceSheets && <span className="text-gray-400 ml-2">(loading...)</span>}
+                                                    </h3>
+                                                    {serviceSheets.length > 0 ? (
+                                                        <div className="max-h-40 overflow-y-auto space-y-1">
+                                                            {serviceSheets.map((sheet) => (
+                                                                <button
+                                                                    key={sheet.id}
+                                                                    onClick={() => handleSelectServiceSheet(sheet.id)}
+                                                                    className="w-full text-left px-3 py-2 text-sm bg-white hover:bg-gray-100 rounded border border-gray-200 truncate"
+                                                                >
+                                                                    {sheet.name}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    ) : !loadingServiceSheets ? (
+                                                        <p className="text-sm text-gray-500">
+                                                            No sheets found. Create one above or share a sheet with the service account.
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+
+                                                <button
+                                                    onClick={() => setShowServiceSheetPicker(false)}
+                                                    className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+                                                >
+                                                    ← Go back
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {!showServiceSheetPicker && (
+                                            <p className="mt-4 text-center text-sm text-gray-600">
+                                                Demo mode - no Google sign-in required
+                                            </p>
+                                        )}
+                                    </>
+                                )}
                             </Card>
                         </GlareHover>
                     </div>
                 </div>
             </main>
 
-            {/* Create Sheet Modal */}
+            {/* Create Sheet Modal (for OAuth mode) */}
             <CreateSheetModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
