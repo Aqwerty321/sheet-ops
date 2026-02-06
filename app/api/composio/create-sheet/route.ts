@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
     const connectedAccountId = body.connectedAccountId;
     const userId = body.userId || "anonymous";
 
+    console.log("create-sheet request:", { title, connectedAccountId, userId });
+
     try {
         // If no connectedAccountId provided, try to get one for this user
         let accountId = connectedAccountId;
@@ -41,19 +43,25 @@ export async function POST(request: NextRequest) {
 
             if (accountsResponse.ok) {
                 const accountsData = await accountsResponse.json() as {
-                    items?: Array<{ id?: string; status?: string; appName?: string }>;
+                    items?: Array<{ id?: string; status?: string; appName?: string; appUniqueId?: string }>;
                 };
 
                 const sheetsAccount = accountsData.items?.find(
                     (item) => {
-                        const appName = (item.appName || "").toLowerCase();
-                        return appName.includes("sheet") || appName.includes("google");
+                        const appName = (item.appName || item.appUniqueId || "").toLowerCase();
+                        const isSheets = appName.includes("sheet") || appName.includes("google");
+                        // We also check status to ensure we pick an active connection
+                        const isActive = item.status === "ACTIVE";
+                        return isSheets && isActive;
                     }
                 );
 
                 if (sheetsAccount?.id) {
                     accountId = sheetsAccount.id;
                 }
+            } else {
+                const errorText = await accountsResponse.text();
+                console.error("Failed to fetch connected accounts:", accountsResponse.status, errorText);
             }
         }
 

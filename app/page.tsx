@@ -40,9 +40,11 @@ export default function Page() {
             try {
                 const res = await fetch("/api/composio/connection?userId=anonymous");
                 const data = await res.json();
+                console.log("Connection check result:", data);
                 setIsConnected(data.connected ?? false);
                 setConnectedAccountId(data.connectedAccountId ?? null);
-            } catch {
+            } catch (err) {
+                console.error("Connection check failed:", err);
                 setIsConnected(false);
             } finally {
                 setIsCheckingConnection(false);
@@ -133,6 +135,7 @@ export default function Page() {
             if (!isConnected) {
                 handleConnect();
             } else {
+                console.log("Opening create modal with connectedAccountId:", connectedAccountId);
                 setIsModalOpen(true);
             }
         } else {
