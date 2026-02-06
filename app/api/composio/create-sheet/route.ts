@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
         title?: string;
         connectedAccountId?: string;
         userId?: string;
+        initialData?: any;
     };
 
     try {
@@ -74,9 +75,56 @@ export async function POST(request: NextRequest) {
 
         console.log("Creating spreadsheet with title:", title, "accountId:", accountId);
 
-        // Use Composio to create a new spreadsheet
+        // Check if we should use SHEET_FROM_JSON (bulk create & populate)
+        if (body.initialData) {
+            console.log("Creating and populating sheet using SHEET_FROM_JSON...");
+            const createResponse = await fetch(
+                "https://backend.composio.dev/api/v2/actions/GOOGLESHEETS_SHEET_FROM_JSON/execute",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-api-key": getApiKey(),
+                    },
+                    body: JSON.stringify({
+                        connectedAccountId: accountId,
+                        input: {
+                            title: title,
+                            data: body.initialData,
+                        },
+                    }),
+                }
+            );
+
+            const responseText = await createResponse.text();
+            if (!createResponse.ok) {
+                return NextResponse.json(
+                    { error: "Failed to create & populate sheet", details: responseText },
+                    { status: createResponse.status }
+                );
+            }
+
+            try {
+                const data = JSON.parse(responseText);
+                const spreadsheetId = data.data?.spreadsheetId || data.spreadsheetId;
+                return NextResponse.json({
+                    ok: true,
+                    spreadsheetId,
+                    title,
+                    url: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
+                });
+            } catch {
+                return NextResponse.json(
+                    { error: "Invalid response from Composio", details: responseText },
+                    { status: 500 }
+                );
+            }
+        }
+
+        // Standard creation using CREATE_GOOGLE_SHEET1
+        console.log("Creating empty spreadsheet using CREATE_GOOGLE_SHEET1...");
         const createResponse = await fetch(
-            "https://backend.composio.dev/api/v2/actions/GOOGLESHEETS_CREATE_GOOGLE_SHEET/execute",
+            "https://backend.composio.dev/api/v2/actions/GOOGLESHEETS_CREATE_GOOGLE_SHEET1/execute",
             {
                 method: "POST",
                 headers: {
@@ -96,7 +144,8 @@ export async function POST(request: NextRequest) {
         console.log("Create spreadsheet response:", createResponse.status, responseText);
 
         if (!createResponse.ok) {
-            // Try alternative action name
+            // Try fallback action name
+            console.warn("Primary action failed, trying fallback: GOOGLESHEETS_CREATE_SPREADSHEET");
             const altResponse = await fetch(
                 "https://backend.composio.dev/api/v2/actions/GOOGLESHEETS_CREATE_SPREADSHEET/execute",
                 {
