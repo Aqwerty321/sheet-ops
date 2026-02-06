@@ -14,6 +14,10 @@ pnpm-debug.log*
 # Vite build output
 dist
 
+# Next.js build output
+.next
+out
+
 # TypeScript
 *.tsbuildinfo
 

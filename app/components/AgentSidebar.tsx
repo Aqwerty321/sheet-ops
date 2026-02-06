@@ -24,12 +24,12 @@ interface Row {
 interface EditOperation {
   id: string;
   type:
-    | "cell_update"
-    | "column_add"
-    | "column_delete"
-    | "add_row"
-    | "row_delete"
-    | "sort";
+  | "cell_update"
+  | "column_add"
+  | "column_delete"
+  | "add_row"
+  | "row_delete"
+  | "sort";
   rowId?: string;
   columnId?: string;
   oldValue?: string;
@@ -117,12 +117,12 @@ export default function AgentSidebar({
       });
       const data = (await res.json()) as { redirectUrl?: string; error?: string; details?: unknown };
       console.log("Connect response:", data);
-      
+
       if (data.error) {
         alert(`Connection failed: ${data.error}\n${JSON.stringify(data.details, null, 2)}`);
         return;
       }
-      
+
       if (data.redirectUrl) {
         // Redirect to OAuth page
         window.location.href = data.redirectUrl;
@@ -137,7 +137,7 @@ export default function AgentSidebar({
 
   const handleConnectSheet = async () => {
     if (!sheetId) return;
-    
+
     setIsConnectingSheet(true);
     setAgentConnected(false);
 
@@ -164,7 +164,7 @@ export default function AgentSidebar({
           acc[col.label] = "text"; // Default to text, could be more sophisticated
           return acc;
         }, {}),
-        currentData: rows.slice(0, 10).map((row) => 
+        currentData: rows.slice(0, 10).map((row) =>
           columns.map((col) => row.cells[col.id] || "")
         ),
         rowCount: rows.length,
@@ -294,7 +294,7 @@ export default function AgentSidebar({
 
   const parseOperationsFromResponse = useCallback((text: string): EditOperation[] => {
     const ops: EditOperation[] = [];
-    
+
     // Helper to convert column letter to index
     const columnLetterToIndex = (letter: string): number => {
       let index = 0;
@@ -303,16 +303,16 @@ export default function AgentSidebar({
       }
       return index - 1;
     };
-    
+
     console.log("Parsing agent response for operations...");
-    
+
     // Look for JSON blocks in the response
     const jsonMatch = text.match(/```json\s*([\s\S]*?)```/);
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[1]);
         console.log("Parsed JSON from agent:", parsed);
-        
+
         // Handle the new format with "operations" array
         if (parsed.operations && Array.isArray(parsed.operations)) {
           const result = parsed.operations.map((op: any, idx: number) => {
@@ -321,22 +321,21 @@ export default function AgentSidebar({
               // Convert column letter to columnId
               const colIndex = columnLetterToIndex(op.column.toUpperCase());
               const columnId = columns[colIndex]?.id || `col_${colIndex}`;
-              // Agent uses 1-based rows where row 1 = headers
-              // Our internal rowId uses r1 = first data row = agent's row 2
-              // So we subtract 1: agent row 3 -> our r2
-              const internalRow = op.row - 1;
-              console.log("Cell update row mapping:", { 
-                agentRow: op.row, 
-                internalRow, 
-                rowId: `r${internalRow}`,
+              // Agent row numbers are 1-based and refer to data rows (headers excluded)
+              // Our internal rowId r1 = first data row, so agent row 1 = r1
+              // No offset needed - direct mapping
+              const rowNum = op.row;
+              console.log("Cell update row mapping:", {
+                agentRow: op.row,
+                rowId: `r${rowNum}`,
                 column: op.column,
                 columnId,
-                value: op.value 
+                value: op.value
               });
               return {
                 id: `op-${Date.now()}-${idx}`,
                 type: "cell_update" as const,
-                rowId: `r${internalRow}`,
+                rowId: `r${rowNum}`,
                 columnId,
                 newValue: String(op.value),
                 author: "agent" as const,
@@ -357,12 +356,12 @@ export default function AgentSidebar({
                 });
               }
             } else if (op.type === "row_delete") {
-              // Agent uses 1-based rows where row 1 = headers
-              const internalRow = op.row - 1;
+              // Agent row numbers are 1-based data rows, no offset needed
+              const rowNum = op.row;
               return {
                 id: `op-${Date.now()}-del-${idx}`,
                 type: "row_delete" as const,
-                rowId: `r${internalRow}`,
+                rowId: `r${rowNum}`,
                 author: "agent" as const,
               };
             } else if (op.type === "sort") {
@@ -603,138 +602,138 @@ export default function AgentSidebar({
         <AgentLoadingState sheetName={sheetName || sheetId || "Sheet"} />
       ) : (
         <div className="flex h-full flex-col overflow-hidden">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="text-lg font-semibold">Agent</div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span className={`h-2 w-2 rounded-full ${statusConfig[status].color}`} />
-          {statusConfig[status].label}
-        </div>
-      </div>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="text-lg font-semibold">Agent</div>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span className={`h-2 w-2 rounded-full ${statusConfig[status].color}`} />
+              {statusConfig[status].label}
+            </div>
+          </div>
 
-      {/* Connected Sheet Info or Connect Button */}
-      {connectedSheet && agentConnected ? (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-green-600">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </span>
-              <div>
-                <div className="text-sm font-medium text-green-800">Connected</div>
-                <div className="text-xs text-green-600 truncate max-w-[180px]" title={connectedSheet.name}>
-                  {connectedSheet.name}
+          {/* Connected Sheet Info or Connect Button */}
+          {connectedSheet && agentConnected ? (
+            <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <div className="text-sm font-medium text-green-800">Connected</div>
+                    <div className="text-xs text-green-600 truncate max-w-[180px]" title={connectedSheet.name}>
+                      {connectedSheet.name}
+                    </div>
+                  </div>
                 </div>
+                <button
+                  onClick={handleDisconnectSheet}
+                  className="text-xs text-green-600 hover:text-green-800 underline"
+                >
+                  Disconnect
+                </button>
               </div>
             </div>
+          ) : sheetId ? (
+            <div className="mb-4 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-6">
+              <div className="mb-2 text-center text-sm text-gray-600">
+                {sheetName || `Sheet ${sheetId.slice(0, 12)}...`}
+              </div>
+              <button
+                onClick={handleConnectSheet}
+                className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+              >
+                Connect to this Sheet
+              </button>
+              <div className="mt-2 text-xs text-gray-500 text-center">
+                Click to give the agent full access to edit this spreadsheet
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-center text-sm text-yellow-700">
+              Select a sheet from the dropdown to get started
+            </div>
+          )}
+
+          <div ref={messagesRef} className="flex-1 overflow-auto space-y-3 p-2">
+            {messages.map((m) => (
+              <AgentMessage
+                key={m.id}
+                from={m.from}
+                text={m.text || (m.isStreaming ? "..." : "")}
+              />
+            ))}
+
+            <div className="border-t border-gray-100 pt-2 text-sm text-gray-600">
+              {pendingOps.length === 0 ? (
+                <span>No pending changes</span>
+              ) : (
+                <div className="space-y-1">
+                  <div className="font-medium text-gray-700">
+                    Pending changes ({pendingOps.length})
+                  </div>
+                  <ul className="space-y-1 max-h-32 overflow-auto">
+                    {pendingOps.map((op) => (
+                      <li key={op.id}>
+                        <button
+                          className="text-left underline text-xs"
+                          aria-label="Preview pending change"
+                          onClick={onPreview}
+                        >
+                          {op.type}: {op.rowId ?? "-"} · {op.columnId ?? "-"}
+                          {op.newValue ? ` → "${op.newValue}"` : ""}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {validationIssues.length > 0 && (
+              <div className="border-t border-gray-100 pt-2 text-sm text-gray-600">
+                <div className="font-medium text-gray-700">
+                  Validation issues ({validationIssues.length})
+                </div>
+                <ul className="mt-1 space-y-1 max-h-24 overflow-auto">
+                  {validationIssues.map((issue) => (
+                    <li key={issue.id} className="text-xs text-red-600">
+                      {issue.rowId} · {issue.columnId}: {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-gray-100 bg-white p-2">
+            <textarea
+              aria-label="Agent input"
+              placeholder={
+                !connectedSheet
+                  ? "Connect to a sheet first to start editing"
+                  : mode === "agent"
+                    ? "Ask: remove duplicates, sort by amount, clean emails..."
+                    : "Switch to Agent mode to use AI"
+              }
+              className="w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+              rows={2}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={!connectedSheet || mode !== "agent" || status === "streaming" || status === "thinking"}
+            />
             <button
-              onClick={handleDisconnectSheet}
-              className="text-xs text-green-600 hover:text-green-800 underline"
+              aria-label="Run agent"
+              className="rounded-md bg-black px-3 py-1.5 text-sm text-white disabled:opacity-50"
+              onClick={handleRun}
+              disabled={!connectedSheet || mode !== "agent" || !input.trim() || status === "streaming" || status === "thinking"}
             >
-              Disconnect
+              {status === "thinking" || status === "streaming" ? "Processing..." : "Run"}
             </button>
           </div>
         </div>
-      ) : sheetId ? (
-        <div className="mb-4 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-6">
-          <div className="mb-2 text-center text-sm text-gray-600">
-            {sheetName || `Sheet ${sheetId.slice(0, 12)}...`}
-          </div>
-          <button
-            onClick={handleConnectSheet}
-            className="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-          >
-            Connect to this Sheet
-          </button>
-          <div className="mt-2 text-xs text-gray-500 text-center">
-            Click to give the agent full access to edit this spreadsheet
-          </div>
-        </div>
-      ) : (
-        <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-center text-sm text-yellow-700">
-          Select a sheet from the dropdown to get started
-        </div>
-      )}
-
-      <div ref={messagesRef} className="flex-1 overflow-auto space-y-3 p-2">
-        {messages.map((m) => (
-          <AgentMessage
-            key={m.id}
-            from={m.from}
-            text={m.text || (m.isStreaming ? "..." : "")}
-          />
-        ))}
-
-        <div className="border-t border-gray-100 pt-2 text-sm text-gray-600">
-          {pendingOps.length === 0 ? (
-            <span>No pending changes</span>
-          ) : (
-            <div className="space-y-1">
-              <div className="font-medium text-gray-700">
-                Pending changes ({pendingOps.length})
-              </div>
-              <ul className="space-y-1 max-h-32 overflow-auto">
-                {pendingOps.map((op) => (
-                  <li key={op.id}>
-                    <button
-                      className="text-left underline text-xs"
-                      aria-label="Preview pending change"
-                      onClick={onPreview}
-                    >
-                      {op.type}: {op.rowId ?? "-"} · {op.columnId ?? "-"}
-                      {op.newValue ? ` → "${op.newValue}"` : ""}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {validationIssues.length > 0 && (
-          <div className="border-t border-gray-100 pt-2 text-sm text-gray-600">
-            <div className="font-medium text-gray-700">
-              Validation issues ({validationIssues.length})
-            </div>
-            <ul className="mt-1 space-y-1 max-h-24 overflow-auto">
-              {validationIssues.map((issue) => (
-                <li key={issue.id} className="text-xs text-red-600">
-                  {issue.rowId} · {issue.columnId}: {issue.message}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2 border-t border-gray-100 bg-white p-2">
-        <textarea
-          aria-label="Agent input"
-          placeholder={
-            !connectedSheet
-              ? "Connect to a sheet first to start editing"
-              : mode === "agent"
-                ? "Ask: remove duplicates, sort by amount, clean emails..."
-                : "Switch to Agent mode to use AI"
-          }
-          className="w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-100 disabled:text-gray-500"
-          rows={2}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={!connectedSheet || mode !== "agent" || status === "streaming" || status === "thinking"}
-        />
-        <button
-          aria-label="Run agent"
-          className="rounded-md bg-black px-3 py-1.5 text-sm text-white disabled:opacity-50"
-          onClick={handleRun}
-          disabled={!connectedSheet || mode !== "agent" || !input.trim() || status === "streaming" || status === "thinking"}
-        >
-          {status === "thinking" || status === "streaming" ? "Processing..." : "Run"}
-        </button>
-      </div>
-    </div>
       )}
     </>
   );
