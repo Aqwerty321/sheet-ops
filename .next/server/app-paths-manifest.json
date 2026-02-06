@@ -1,4 +1,14 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/chat/proxy/route": "app/api/chat/proxy/route.js",
+  "/api/composio/connection/route": "app/api/composio/connection/route.js",
+  "/api/sheets/oauth-callback/route": "app/api/sheets/oauth-callback/route.js",
+  "/api/sheets/execute/route": "app/api/sheets/execute/route.js",
+  "/api/composio/push/route": "app/api/composio/push/route.js",
+  "/api/composio/sheets/route": "app/api/composio/sheets/route.js",
+  "/api/composio/sheet-tabs/route": "app/api/composio/sheet-tabs/route.js",
   "/page": "app/page.js",
+  "/api/sheets/read/route": "app/api/sheets/read/route.js",
+  "/api/sheets/oauth-start/route": "app/api/sheets/oauth-start/route.js",
   "/sheet/[sheetId]/page": "app/sheet/[sheetId]/page.js"
 }
