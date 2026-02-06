@@ -21,6 +21,11 @@ export default function Page() {
     const [connectedAccountId, setConnectedAccountId] = useState<string | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
 
+    // OAuth sheet picker state
+    const [oauthSheets, setOauthSheets] = useState<Array<{ id: string; name: string }>>([]);
+    const [loadingOauthSheets, setLoadingOauthSheets] = useState(false);
+    const [showOauthSheetPicker, setShowOauthSheetPicker] = useState(false);
+
     // Service account state
     const [serviceSheets, setServiceSheets] = useState<Array<{ id: string; name: string }>>([]);
     const [loadingServiceSheets, setLoadingServiceSheets] = useState(false);
@@ -52,6 +57,35 @@ export default function Page() {
             loadServiceSheets();
         }
     }, [authMode]);
+
+    // Load OAuth sheets when connected
+    const loadOauthSheets = async () => {
+        if (!connectedAccountId) return;
+        setLoadingOauthSheets(true);
+        try {
+            const res = await fetch(`/api/composio/sheets?userId=anonymous&connectedAccountId=${connectedAccountId}`);
+            const data = await res.json();
+            setOauthSheets(data.sheets || []);
+        } catch (err) {
+            console.error("Failed to load OAuth sheets:", err);
+        } finally {
+            setLoadingOauthSheets(false);
+        }
+    };
+
+    const handleUseExistingClick = async () => {
+        if (!isConnected) {
+            handleConnect();
+        } else {
+            setShowOauthSheetPicker(true);
+            loadOauthSheets();
+        }
+    };
+
+    const handleSelectOauthSheet = (sheetId: string) => {
+        localStorage.setItem("sheetops-authMode", "oauth");
+        router.push(`/sheet/${sheetId}`);
+    };
 
     const loadServiceSheets = async () => {
         setLoadingServiceSheets(true);
@@ -196,8 +230,8 @@ export default function Page() {
                                     <button
                                         onClick={() => setAuthMode("service")}
                                         className={`px-4 py-2 text-sm rounded-lg transition-colors ${authMode === "service"
-                                                ? "bg-gray-900 text-white"
-                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                            ? "bg-gray-900 text-white"
+                                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                             }`}
                                     >
                                         Use app sheets (no sign-in)
@@ -205,8 +239,8 @@ export default function Page() {
                                     <button
                                         onClick={() => setAuthMode("oauth")}
                                         className={`px-4 py-2 text-sm rounded-lg transition-colors ${authMode === "oauth"
-                                                ? "bg-gray-900 text-white"
-                                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                            ? "bg-gray-900 text-white"
+                                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                             }`}
                                     >
                                         Use my Google Sheets
@@ -233,38 +267,75 @@ export default function Page() {
                                             )}
                                         </div>
 
-                                        <div className="flex flex-col md:flex-row gap-3 md:justify-center">
-                                            <button
-                                                onClick={handleCreateClick}
-                                                disabled={isConnecting}
-                                                className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-black text-white text-center hover:opacity-95 disabled:opacity-50 flex items-center justify-center gap-2"
-                                            >
-                                                {isConnecting ? (
-                                                    <>
-                                                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                                        </svg>
-                                                        Connecting...
-                                                    </>
-                                                ) : isConnected ? (
-                                                    "Create new spreadsheet"
-                                                ) : (
-                                                    "Connect & Create"
-                                                )}
-                                            </button>
-                                            <a
-                                                href="/sheet/sample"
-                                                className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-white text-black text-center hover:bg-gray-50"
-                                            >
-                                                Open sample sheet
-                                            </a>
-                                        </div>
-                                        <p className="mt-4 text-center text-sm text-gray-600">
-                                            {isConnected
-                                                ? "Create a new spreadsheet in your Google Drive"
-                                                : "Connect your Google account to create spreadsheets"}
-                                        </p>
+                                        {!showOauthSheetPicker ? (
+                                            <>
+                                                <div className="flex flex-col md:flex-row gap-3 md:justify-center">
+                                                    <button
+                                                        onClick={handleCreateClick}
+                                                        disabled={isConnecting}
+                                                        className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-black text-white text-center hover:opacity-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                                                    >
+                                                        {isConnecting ? (
+                                                            <>
+                                                                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                                </svg>
+                                                                Connecting...
+                                                            </>
+                                                        ) : isConnected ? (
+                                                            "Create new spreadsheet"
+                                                        ) : (
+                                                            "Connect & Create"
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        onClick={handleUseExistingClick}
+                                                        disabled={isConnecting}
+                                                        className="w-full md:w-auto px-6 py-3 rounded-md border border-gray-300 bg-white text-black text-center hover:bg-gray-50 disabled:opacity-50"
+                                                    >
+                                                        {isConnected ? "Use existing sheet" : "Connect & Select"}
+                                                    </button>
+                                                </div>
+                                                <p className="mt-4 text-center text-sm text-gray-600">
+                                                    {isConnected
+                                                        ? "Create a new spreadsheet or select from your Google Drive"
+                                                        : "Connect your Google account to access your spreadsheets"}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div className="p-4 bg-gray-50 rounded-lg">
+                                                    <h3 className="text-sm font-medium mb-2">
+                                                        Select a spreadsheet from your Google Drive
+                                                        {loadingOauthSheets && <span className="text-gray-400 ml-2">(loading...)</span>}
+                                                    </h3>
+                                                    {oauthSheets.length > 0 ? (
+                                                        <div className="max-h-48 overflow-y-auto space-y-1">
+                                                            {oauthSheets.map((sheet) => (
+                                                                <button
+                                                                    key={sheet.id}
+                                                                    onClick={() => handleSelectOauthSheet(sheet.id)}
+                                                                    className="w-full text-left px-3 py-2 text-sm bg-white hover:bg-gray-100 rounded border border-gray-200 truncate"
+                                                                >
+                                                                    {sheet.name}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    ) : !loadingOauthSheets ? (
+                                                        <p className="text-sm text-gray-500">
+                                                            No spreadsheets found in your Google Drive.
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                                <button
+                                                    onClick={() => setShowOauthSheetPicker(false)}
+                                                    className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+                                                >
+                                                    ← Go back
+                                                </button>
+                                            </div>
+                                        )}
                                     </>
                                 )}
 
