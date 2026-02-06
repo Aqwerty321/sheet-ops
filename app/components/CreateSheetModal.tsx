@@ -6,6 +6,7 @@ interface CreateSheetModalProps {
     isOpen: boolean;
     onClose: () => void;
     onCreated: (spreadsheetId: string, title: string) => void;
+    onAuthError?: () => void;
     userId?: string;
     connectedAccountId?: string;
 }
@@ -14,6 +15,7 @@ export default function CreateSheetModal({
     isOpen,
     onClose,
     onCreated,
+    onAuthError,
     userId = "anonymous",
     connectedAccountId,
 }: CreateSheetModalProps) {
@@ -46,7 +48,15 @@ export default function CreateSheetModal({
             const data = await response.json();
 
             if (!response.ok || data.error) {
-                setError(data.error || "Failed to create spreadsheet");
+                const errMsg = data.error || "Failed to create spreadsheet";
+                // Handle auth errors (e.g. no connected account)
+                if (
+                    errMsg.toLowerCase().includes("no connected") ||
+                    errMsg.toLowerCase().includes("connect first")
+                ) {
+                    if (onAuthError) onAuthError();
+                }
+                setError(errMsg);
                 return;
             }
 

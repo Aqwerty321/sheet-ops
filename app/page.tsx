@@ -442,6 +442,12 @@ export default function Page() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onCreated={handleSheetCreated}
+                onAuthError={() => {
+                    setIsConnected(false);
+                    setConnectedAccountId(null);
+                    setIsModalOpen(false);
+                    alert("Connection lost or expired. Please connect your Google account again.");
+                }}
                 connectedAccountId={connectedAccountId ?? undefined}
             />
         </div>
